@@ -2,6 +2,7 @@ import cv2
 import pandas as pd
 from ultralytics import YOLO
 from tracker import *
+import time
 
 model = YOLO('yolov8s.pt')
 
@@ -24,12 +25,30 @@ cy1 = 194
 cy2 = 220
 offset = 6
 
+# Counter variables
+counter1 = 0
+counter2 = 0
+vehicledown = {}
+vehicleup = {}
+
+# Video writer setup
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+output_filename = "output_video.mp4"
+output_video = cv2.VideoWriter(output_filename, fourcc, 20.0, (1020, 500))
+
+start_time = time.time()
+output_interval = 20  # in seconds
+
 while True:
     ret, frame = cap.read()
     if not ret:
         break
 
     frame = cv2.resize(frame, (1020, 500))
+
+    # Draw horizontal lines
+    cv2.line(frame, (0, cy1), (1020, cy1), (0, 255, 0), 2)
+    cv2.line(frame, (0, cy2), (1020, cy2), (0, 255, 255), 2)
 
     results = model.predict(frame)
     a = results[0].boxes.data
@@ -56,21 +75,46 @@ while True:
 
         # Check if the vehicle has crossed the lines
         if is_crossing_line((cx, cy), cy1, offset):
-            # Handle the vehicle crossing the line here
-            pass
+            if id not in vehicledown:
+                vehicledown[id] = True
+                counter1 += 1
 
         if is_crossing_line((cx, cy), cy2, offset):
-            # Handle the vehicle crossing the other line here
-            pass
+            if id not in vehicleup:
+                vehicleup[id] = True
+                counter2 += 1
 
-    # ... (Rest of your code)
+    # Display counters
+    cv2.putText(frame, f"Down: {counter1}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"Up: {counter2}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
     cv2.imshow('frame', frame)
+    
+    # Write frame to output video
+    output_video.write(frame)
 
-    # ... (Rest of your code)
+    current_time = time.time()
+    elapsed_time = current_time - start_time
+
+    # Check if 20 seconds have passed to create a new output video
+    if elapsed_time >= output_interval:
+        output_video.release()
+        print(f"Output video saved as {output_filename}")
+        start_time = time.time()
+
+        # Create a new output video
+        output_filename = f"output_video_{int(elapsed_time // output_interval)}.mp4"
+        output_video = cv2.VideoWriter(output_filename, fourcc, 20.0, (1020, 500))
+        
+        # Reset counters and dictionaries
+        counter1 = 0
+        counter2 = 0
+        vehicledown = {}
+        vehicleup = {}
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
+output_video.release()
 cv2.destroyAllWindows()
