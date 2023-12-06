@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    environment {
+        REACT_IMAGE = 'frontend'
+        FLASK_IMAGE = 'backend'
+        BRAVE_IMAGE = 'browserless/chrome'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build and Test React') {
+            steps {
+                dir('vehicle-detection-frontend') {
+                    script {
+                        // Build React Docker image
+                        sh 'docker build -t ${REACT_IMAGE} .'
+                        // Run React Docker container (you may need to adjust port and other options)
+                        sh 'docker run -d -p 3000:3000 ${REACT_IMAGE}'
+                    }
+                }
+            }
+        }
+
+        stage('Build and Test Flask') {
+            steps {
+                script {
+                    // Install Python dependencies and run pytest
+                    sh 'pip install -r requirements.txt'
+                    sh 'python -m pytest'
+                    // Build Flask Docker image
+                    sh 'docker build -t ${FLASK_IMAGE} .'
+                    // Run Flask Docker container (you may need to adjust port and other options)
+                    sh 'docker run -d -p 5000:5000 ${FLASK_IMAGE}'
+                }
+            }
+        }
+
+        stage('Run Selenium Tests') {
+            steps {
+                script {
+                    // Install Python dependencies for Selenium tests
+                    dir('test') {
+                        sh 'pip install -r requirements.txt'
+                        // Run Selenium tests using Brave browser
+                        sh 'python -m pytest --browser=brave test_app.py'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            // Email notification on failure
+            emailext attachLog: true,
+                subject: "Pipeline Failed: ${currentBuild.fullDisplayName}",
+                body: "Build failed. Please check the Jenkins console output for details.",
+                to: "tarun.tamma20@st.niituniversity.in, kaza.srivathsava20@st.niituniversity.in, gorantla.suhas20@st.niituniversity.in ",
+                mimeType: 'text/html'
+        }
+    }
+}
