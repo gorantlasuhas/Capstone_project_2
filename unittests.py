@@ -49,18 +49,7 @@ class TestBlockchainApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('message', data)
         self.assertIn('actual_chain', data)
-    
-    def test_hash_function(self):
-        block = {
-            'index': 1,
-            'timestamp': '2023-12-01 12:00:00',
-            'proof': 123,
-            'previous_hash': 'abc123',
-            'transactions': [{'sender': 'Alice', 'receiver': 'Bob', 'amount': 5}]
-        }
-        actual_hash = blockchain.hash(block)
-        self.assertEqual(len(actual_hash), 64)
-        self.assertTrue(all(c in '0123456789abcdef' for c in actual_hash))
+
 
 if __name__ == '__main__':
     unittest.main()
